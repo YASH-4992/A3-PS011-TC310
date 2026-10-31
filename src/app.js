@@ -7,7 +7,9 @@ import rateLimit from 'express-rate-limit';
 import logger from './utils/logger.js';
 import config from './config/index.js';
 import authRoutes from './routes/auth.js';
+import logoutRoutes from './routes/auth.js';
 import targetRoutes from './routes/targets.js';
+import auditRoutes from './routes/audit.js';
 import dashboardRoutes from './routes/dashboard.js';
 import { authMiddleware } from './middleware/auth.js';
 import { csrfMiddleware, csrfCookieMiddleware } from './middleware/csrf.js';
@@ -46,27 +48,19 @@ export const createApp = ({ sessionStore } = {}) => {
    *   3. SameSite cookies + CSRF tokens - stop cross-site requests.
    *
    * NOTE: `"'self'"` must use double quotes because the value itself contains
-   * a single quote. That is why the lint rule uses `avoidEscape: true`.
+   * a single quote. The lint rule is configured with `avoidEscape: true`, so
+   * these double-quoted strings do not violate the single-quote rule.
    */
-  // eslint-disable-next-line quotes
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
-        // eslint-disable-next-line quotes
         defaultSrc: ["'self'"],
-        // eslint-disable-next-line quotes
         scriptSrc: ["'self'"],
-        // eslint-disable-next-line quotes
         styleSrc: ["'self'"],
-        // eslint-disable-next-line quotes
         imgSrc: ["'self'", 'data:'],
-        // eslint-disable-next-line quotes
         connectSrc: ["'self'"],
-        // eslint-disable-next-line quotes
         formAction: ["'self'"],
-        // eslint-disable-next-line quotes
         baseUri: ["'self'"],
-        // eslint-disable-next-line quotes
         frameAncestors: ["'none'"],
       },
     },
@@ -127,9 +121,16 @@ export const createApp = ({ sessionStore } = {}) => {
 
   // Everything below requires a session. CSRF is checked for state-changing verbs.
   const protectedMiddleware = [authMiddleware, csrfMiddleware];
-  app.use('/logout', ...protectedMiddleware, authRoutes);
-  // API routes (all under /api) - placeholder endpoints; real CRUD lands in S2.
-  app.use('/api', ...protectedMiddleware, targetRoutes);
+
+  // SYNTAX: `app.use('/api/targets', ...)` mounts a router at a path prefix.
+  // IMPORTANT: a mounted router sees the URL RELATIVE to the mount point, so a
+  // router mounted at '/api/targets' must define `router.get('/')` (NOT
+  // `router.get('/targets')`) to answer GET /api/targets.
+  app.use('/logout', ...protectedMiddleware, logoutRoutes);
+  // Audit trail - READ-ONLY by design (no POST/PUT/PATCH/DELETE handlers).
+  app.use('/api/audit', ...protectedMiddleware, auditRoutes);
+  // Target CRUD.
+  app.use('/api/targets', ...protectedMiddleware, targetRoutes);
   // UI dashboard - placeholder; real views land in a later slice.
   app.use('/', ...protectedMiddleware, dashboardRoutes);
   // Remaining API route groups are added in subsequent slices:

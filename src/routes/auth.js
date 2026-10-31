@@ -1,6 +1,7 @@
 import express from 'express';
 import { safeEqual } from '../middleware/auth.js';
 import config from '../config/index.js';
+import { logEvent } from '../services/auditService.js';
 
 const router = express.Router();
 
@@ -19,6 +20,7 @@ router.get('/', (req, res) => {
  * POST /login
  * Validates credentials using constant-time comparison.
  * On success, creates a session and redirects to /dashboard.
+ * Audits both success and failure.
  */
 router.post('/', async (req, res) => {
   const { username, password } = req.body || {};
@@ -31,8 +33,23 @@ router.post('/', async (req, res) => {
   const passOk = safeEqual(password, config.admin.password);
 
   if (!userOk || !passOk) {
+    await logEvent({
+      event: 'login_failure',
+      actor: username || 'anonymous',
+      targetId: null,
+      ip: req.ip || '',
+      message: `Login failed for username: ${username}`,
+    });
     return res.status(401).render('login', { error: 'Invalid credentials' });
   }
+
+  await logEvent({
+    event: 'login_success',
+    actor: config.admin.username,
+    targetId: null,
+    ip: req.ip || '',
+    message: 'Login successful',
+  });
 
   req.session.user = config.admin.username;
   req.session.save((err) => {

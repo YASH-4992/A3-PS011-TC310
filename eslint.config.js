@@ -48,7 +48,7 @@ export default [
       'eqeqeq': ['error', 'always'],
       'curly': ['error', 'all'],
       'semi': ['error', 'always'],
-      'quotes': ['error', 'single'],
+      'quotes': ['error', 'single', { avoidEscape: true }],
       'indent': ['error', 2],
       'comma-dangle': ['error', 'always-multiline'],
       'prefer-const': 'error',
