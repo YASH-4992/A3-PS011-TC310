@@ -10,7 +10,7 @@ import { acquireScanLock, releaseScanLock } from '../services/scanLock.js';
 
 const router = express.Router();
 const targetIdSchema = /^[a-f\d]{24}$/i;
-const uiRedirect = (res, message) => res.redirect(`/dashboard?message=${encodeURIComponent(message)}`);
+const uiRedirect = (res, message) => res.redirect(`/dashboard/inventory?message=${encodeURIComponent(message)}`);
 const sendError = (req, res, status, message) => (
   req.body?._ui === '1' ? uiRedirect(res, message) : res.status(status).json({ error: message })
 );

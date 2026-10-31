@@ -4,7 +4,6 @@ import http from 'http';
 import https from 'https';
 import crypto from 'crypto';
 import config from '../config/index.js';
-import { TLS_PORTS, HTTP_PORTS } from '../utils/ports.js';
 import { isIpInScope, isValidIp } from '../utils/ip.js';
 import { resolveHostname } from './resolver.js';
 
@@ -266,7 +265,13 @@ const httpProbe = (ip, hostname, port, useTls, timeoutMs) => {
  * @returns {Promise<Object|null>} null when the port is closed
  */
 const probePort = async (ip, hostname, port, opts) => {
-  const { connectTimeoutMs, bannerTimeoutMs, bannerMaxBytes } = opts;
+  const {
+    connectTimeoutMs,
+    bannerTimeoutMs,
+    bannerMaxBytes,
+    tlsPorts,
+    httpPorts,
+  } = opts;
 
   // RULE 1 - fail closed. Re-check the scope for EVERY probe, not only once
   // per scan. If the scope list is empty, `isIpInScope` returns false and we
@@ -280,8 +285,8 @@ const probePort = async (ip, hostname, port, opts) => {
     return null; // closed / filtered / refused
   }
 
-  const isTlsPort = TLS_PORTS.includes(port);
-  const isHttpPort = HTTP_PORTS.includes(port);
+  const isTlsPort = tlsPorts.includes(port);
+  const isHttpPort = httpPorts.includes(port);
 
   let banner = '';
   let tlsInfo = null;
@@ -356,7 +361,12 @@ const resolveAllowedIps = async (target) => {
  * @param {number[]} [options.ports] - internal override for tests; production uses SCAN_PORTS
  * @returns {Promise<Object>} snapshot data (not yet persisted)
  */
-export const runScan = async (target, { scanId, ports: portOverride } = {}) => {
+export const runScan = async (target, {
+  scanId,
+  ports: portOverride,
+  tlsPorts: tlsPortOverride,
+  httpPorts: httpPortOverride,
+} = {}) => {
   const startedAt = new Date();
 
   if (!isIpInScope(target.ip, config.scopeCidrs)) {
@@ -369,6 +379,8 @@ export const runScan = async (target, { scanId, ports: portOverride } = {}) => {
   const ports = portOverride === undefined
     ? [...new Set(config.scanner.ports)]
     : [...new Set(portOverride.filter((port) => Number.isInteger(port) && port > 0 && port <= 65535))];
+  const tlsPorts = tlsPortOverride || config.scanner.tlsPorts;
+  const httpPorts = httpPortOverride || config.scanner.httpPorts;
 
   const results = [];
   const queue = [...ports];
@@ -390,6 +402,8 @@ export const runScan = async (target, { scanId, ports: portOverride } = {}) => {
           connectTimeoutMs: config.scanner.connectTimeoutMs,
           bannerTimeoutMs: config.scanner.bannerTimeoutMs,
           bannerMaxBytes: config.scanner.bannerMaxBytes,
+          tlsPorts,
+          httpPorts,
         });
         if (result) {
           results.push({ ...result, ip });

@@ -53,7 +53,7 @@ describe('Scanner', () => {
     });
     await new Promise((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
     httpPort = httpServer.address().port;
-    app = createApp({ scanOptions: { ports: [tcpPort, httpPort] } });
+    app = createApp({ scanOptions: { ports: [tcpPort, httpPort], httpPorts: [httpPort] } });
   });
 
   afterAll(async () => {

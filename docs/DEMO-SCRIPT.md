@@ -1,16 +1,19 @@
-# Five-minute demo script
+# Five-minute evaluator demo
 
-**Prerequisites:** MongoDB is running; `.env` uses a demo-only admin password, `SCOPE_CIDRS=127.0.0.1/32`, `SCAN_PORTS=8080,8443,9100`, `PROOF_HTTP_PORT=8080`, and `REQUIRE_PROOF_BEFORE_SCAN=true`. Have the app and lab ready on loopback before starting the timer.
+## Before the timer
 
-| Time | Demo action |
+Start MongoDB. Configure `.env` with a demo-only admin password, a unique session secret, `SCOPE_CIDRS=127.0.0.1/32`, `SCAN_PORTS=8080,8443,9100`, `PROOF_HTTP_PORT=8080`, and `REQUIRE_PROOF_BEFORE_SCAN=true`. In separate terminals start `npm run lab` and `npm start`. Do not use any target other than the loopback lab.
+
+| Time | Click path and talking points |
 |---|---|
-| 0:00–0:35 | State the legal boundary: authorized systems only, discovery only, and empty scope means no scans. Show `.env` scope set to `127.0.0.1/32`. |
-| 0:35–1:10 | Open `http://127.0.0.1:3000/login`; sign in. Point out that the dashboard is behind authentication and uses CSRF-protected forms. |
-| 1:10–1:45 | Add `127.0.0.1` as hostname and IP. Check the authorization acknowledgement. Show that the Inventory displays a target in `pending` state and a proof nonce. |
-| 1:45–2:20 | Select **Confirm** and check its authorization box. In PowerShell, run `Set-Content -NoNewline .\.lab-data\proof.txt '<nonce>'`; select **Verify proof**. Show the proof-verified state. |
-| 2:20–3:05 | Select **Scan now**. Refresh Inventory after the scan; point out the real HTTP/HTTPS ports, HTTP service facts, TLS certificate expiry, and successful scan audit events. This first scan is the baseline. |
-| 3:05–3:45 | In PowerShell run `npm run lab:open-port` and `npm run lab:swap-cert`. Explain that these modify only the loopback demo service. |
-| 3:45–4:25 | Scan the target again. Open **Changes** and show `port_opened` and `cert_changed`, each linked to the current and previous snapshots. |
-| 4:25–5:00 | Return to Inventory and attempt to add `8.8.8.8` as a target. Show the clear out-of-scope rejection and the corresponding audit event; explain that the server rejects it before any probe. |
+| 0:00–0:35 | Open `http://localhost:3000/login` and sign in. Explain that only a configured administrator can enter and that this tool is for authorized discovery, not exploitation. |
+| 0:35–1:00 | On **Overview**, show the live counters, Getting started checklist, and scope panel. Point to `127.0.0.1/32` and the rule that out-of-scope addresses are blocked and logged. |
+| 1:00–1:35 | Open **Inventory**. Add hostname/IP `127.0.0.1`, choose a label, and check the authorization acknowledgement. Show that this action alone does not scan. |
+| 1:35–2:10 | On the new target card, select **Confirm authorization** and check its confirmation box. Copy the displayed nonce into the local lab with `Set-Content -NoNewline .\\.lab-data\\proof.txt '<nonce>'`; select **Verify proof**. |
+| 2:10–2:55 | Select **Scan now** and refresh Inventory. Show the real open configured ports, service facts, TLS certificate expiry, and the first-scan baseline. |
+| 2:55–3:35 | In PowerShell, run `npm run lab:open-port` and `npm run lab:swap-cert`. Explain that both affect only the loopback demo service. Scan again and refresh Inventory. |
+| 3:35–4:10 | Open **Changes**. Point out the newly opened port and changed certificate, the severity badges, and the fact that records reference the two compared snapshots. |
+| 4:10–4:35 | Open **Audit**. Show the allowed actions recorded so far and explain this is a read-only application view. |
+| 4:35–5:00 | Return to **Inventory** and attempt to add hostname/IP `203.0.113.10` with the authorization box checked. The action is rejected: it is outside `127.0.0.1/32`, nothing was sent, and the attempt is in Audit. |
 
-End by noting that email delivery, scheduled rescans, and export are planned, not implemented. Avoid scanning any address other than the explicitly authorized loopback lab during this demo.
+Conclude by distinguishing the implemented application-log alerts from planned email, scheduled scans, export, and distributed locking.

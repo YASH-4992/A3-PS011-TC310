@@ -1,6 +1,10 @@
 # .gitignore
 node_modules/
 .env
+.env.*
+!.env.example
+cookies.txt
+cookies*.txt
 .lab-data/
 coverage/
 .DS_Store

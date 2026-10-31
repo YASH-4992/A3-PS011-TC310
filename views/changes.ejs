@@ -1,19 +1,30 @@
-<section>
-  <h2>Change feed</h2>
-  <% if (changes.length === 0) { %><p class="muted">No changes recorded. A first successful scan is the baseline.</p><% } %>
-  <table>
-    <thead><tr><th>When</th><th>Severity</th><th>Change</th><th>Target</th><th>Port</th><th>Snapshot</th></tr></thead>
-    <tbody>
-      <% for (const change of changes) { %>
-        <tr>
-          <td class="nowrap"><%= new Date(change.createdAt).toLocaleString() %></td>
-          <td><%= change.severity %></td>
-          <td><%= change.type %> · <%= change.details %></td>
-          <td><%= change.target %></td>
-          <td><%= change.port || '—' %></td>
-          <td><%= change.snapshotId %> / <%= change.previousSnapshotId %></td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
+<section class="page-intro">
+  <p class="eyebrow">What changed between successful scans</p>
+  <h1>Changes</h1>
+  <p>A first successful scan creates a baseline. Later successful scans are compared with it so you can review newly observed differences.</p>
+</section>
+<section class="panel">
+  <% if (changes.length === 0) { %>
+    <div class="empty-state compact">
+      <h2>No changes recorded</h2>
+      <p>After a first scan, run another successful scan to compare the latest result with the previous one.</p>
+    </div>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>When</th><th>Change</th><th>Severity</th><th>Target</th><th>Port</th></tr></thead>
+        <tbody>
+          <% for (const change of changes) { %>
+            <tr>
+              <td class="nowrap"><%= new Date(change.createdAt).toLocaleString() %></td>
+              <td><span class="change-badge change-<%= change.type %>"><%= change.type.replaceAll('_', ' ') %></span><p class="change-sentence"><%= describeChange(change) %></p><p class="muted small"><%= change.details %></p></td>
+              <td><span class="severity-badge severity-<%= change.severity %>"><%= change.severity %></span></td>
+              <td><%= change.target %></td>
+              <td><%= change.port || '—' %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
 </section>

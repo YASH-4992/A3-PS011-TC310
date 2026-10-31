@@ -125,11 +125,31 @@ describe('Target routes', () => {
       });
     expect(created.status).toBe(201);
 
-    const inventory = await agent.get('/dashboard');
+    const inventory = await agent.get('/dashboard/inventory');
     expect(inventory.status).toBe(200);
     expect(inventory.text).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(inventory.text).not.toContain('<script>alert(1)</script>');
     expect((await agent.get('/dashboard/changes')).status).toBe(200);
     expect((await agent.get('/dashboard/audit')).status).toBe(200);
+    expect((await agent.get('/dashboard')).text).toContain('Getting started');
+    expect((await agent.get('/dashboard/how-it-works')).text).toContain('What this tool never does');
+    expect(inventory.headers['content-security-policy']).toContain("style-src 'self'");
+    expect(inventory.text).toContain('href="/css/app.css"');
+  });
+
+  test('out-of-scope dashboard target explains the block and its audit record', async () => {
+    const res = await agent
+      .post('/api/targets')
+      .set('x-csrf-token', csrfToken)
+      .type('form')
+      .send({
+        hostname: '203.0.113.10',
+        ip: '203.0.113.10',
+        authorized: 'true',
+        _ui: '1',
+      });
+    expect(res.status).toBe(302);
+    expect(decodeURIComponent(res.headers.location)).toContain('Nothing was sent to it');
+    expect(decodeURIComponent(res.headers.location)).toContain('recorded in the audit log');
   });
 });

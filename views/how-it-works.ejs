@@ -1,0 +1,42 @@
+<section class="page-intro">
+  <p class="eyebrow">A predictable, gated workflow</p>
+  <h1>How it works</h1>
+  <p>Every scan follows a sequence of checks before it collects a small, bounded set of service details.</p>
+</section>
+<section class="panel">
+  <h2>From sign-in to change review</h2>
+  <ol class="pipeline">
+    <li><span>1</span><strong>Login</strong><small>Operator session</small></li>
+    <li><span>2</span><strong>Add target</strong><small>Record address</small></li>
+    <li><span>3</span><strong>Scope check</strong><small>Reject out-of-range</small></li>
+    <li><span>4</span><strong>Authorization + proof</strong><small>Confirm permission</small></li>
+    <li><span>5</span><strong>Scan</strong><small>Configured ports only</small></li>
+    <li><span>6</span><strong>Snapshot</strong><small>Save observed facts</small></li>
+    <li><span>7</span><strong>Compare</strong><small>Against last success</small></li>
+    <li><span>8</span><strong>Changes</strong><small>Review differences</small></li>
+    <li><span>9</span><strong>Dashboard</strong><small>Inventory and history</small></li>
+  </ol>
+  <div class="audit-track"><strong>Audit log</strong><span>Records sign-ins, target actions, and scan attempts alongside the workflow.</span></div>
+</section>
+<div class="content-columns">
+  <section class="panel">
+    <h2>Words used in this dashboard</h2>
+    <dl class="glossary">
+      <dt>Attack surface</dt><dd>The network-facing services that can be observed on a system.</dd>
+      <dt>Scope</dt><dd>The address ranges the operator has configured as allowed.</dd>
+      <dt>Authorization</dt><dd>Permission from the system owner to perform this inventory.</dd>
+      <dt>Port</dt><dd>A numbered network endpoint where a service may listen.</dd>
+      <dt>Banner</dt><dd>A short piece of text a service may return when contacted.</dd>
+      <dt>TLS certificate</dt><dd>Identity and validity facts presented by an encrypted service.</dd>
+      <dt>Snapshot</dt><dd>A saved result from one successful scan.</dd>
+      <dt>Baseline</dt><dd>The first successful snapshot used as a comparison starting point.</dd>
+      <dt>Diff</dt><dd>The recorded differences between two successful snapshots.</dd>
+      <dt>Audit log</dt><dd>A time-ordered record of actions and decisions.</dd>
+    </dl>
+  </section>
+  <aside class="panel never-panel">
+    <h2>What this tool never does</h2>
+    <ul><li>No exploitation</li><li>No brute force</li><li>No scanning outside scope</li><li>No fuzzing</li></ul>
+    <p>Its purpose is discovery and monitoring only.</p>
+  </aside>
+</div>

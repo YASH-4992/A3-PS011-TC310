@@ -126,15 +126,21 @@ async function waitForScan(scanId) {
   throw new Error('scan timed out');
 }
 
-function freePort() {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      server.close((error) => (error ? reject(error) : resolve(port)));
-    });
-  });
+async function freePorts(count) {
+  const servers = [];
+  try {
+    for (let index = 0; index < count; index += 1) {
+      const server = net.createServer();
+      await new Promise((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', resolve);
+      });
+      servers.push(server);
+    }
+    return servers.map((server) => server.address().port);
+  } finally {
+    await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))));
+  }
 }
 
 async function stopProcess(child) {
@@ -149,7 +155,7 @@ async function stopProcess(child) {
 }
 
 try {
-  const appPort = await freePort();
+  const [appPort, labHttpPort, labHttpsPort, labControlPort, labExtraPort] = await freePorts(5);
   process.env.VERIFY_APP_PORT = String(appPort);
   const appEnv = {
     NODE_ENV: 'test',
@@ -160,17 +166,25 @@ try {
     MONGODB_URI: databaseUri,
     MONGODB_DB_NAME: databaseName,
     SCOPE_CIDRS: '127.0.0.1/32',
-    SCAN_PORTS: '8080,8443,9100',
+    SCAN_PORTS: `${labHttpPort},${labHttpsPort},${labExtraPort}`,
+    SCAN_TLS_PORTS: String(labHttpsPort),
+    SCAN_HTTP_PORTS: String(labHttpPort),
     SCAN_MAX_CONCURRENT: '3',
     SCAN_INTER_PORT_DELAY_MS: '0',
     SCAN_CONNECT_TIMEOUT_MS: '700',
     SCAN_BANNER_TIMEOUT_MS: '400',
-    PROOF_HTTP_PORT: '8080',
+    PROOF_HTTP_PORT: String(labHttpPort),
     REQUIRE_PROOF_BEFORE_SCAN: 'true',
     LOG_LEVEL: 'silent',
   };
-  labProcess = startProcess(['scripts/lab.mjs', 'start'], {});
-  await step('lab ready on loopback', () => waitFor('http://127.0.0.1:9191/health', labProcess));
+  const labEnv = {
+    LAB_HTTP_PORT: String(labHttpPort),
+    LAB_HTTPS_PORT: String(labHttpsPort),
+    LAB_CONTROL_PORT: String(labControlPort),
+    LAB_EXTRA_PORT: String(labExtraPort),
+  };
+  labProcess = startProcess(['scripts/lab.mjs', 'start'], labEnv);
+  await step('lab ready on loopback', () => waitFor(`http://127.0.0.1:${labControlPort}/health`, labProcess));
 
   appProcess = startProcess(['src/index.js'], appEnv);
   await step('app ready with isolated verification database', () => waitFor(`http://127.0.0.1:${appPort}/health`, appProcess));
@@ -230,18 +244,18 @@ try {
     assert(response.status === 202, payload.error || `scan start returned ${response.status}`);
     const job = await waitForScan(payload.scanId);
     const ports = job.snapshot?.ports?.map((entry) => entry.port) || [];
-    assert(ports.includes(8080), 'real HTTP lab port was not discovered');
-    assert(ports.includes(8443), 'real HTTPS lab port was not discovered');
+    assert(ports.includes(labHttpPort), 'real HTTP lab port was not discovered');
+    assert(ports.includes(labHttpsPort), 'real HTTPS lab port was not discovered');
     return job;
   });
 
   await step('open additional authorized TCP port', async () => {
-    const response = await fetch('http://127.0.0.1:9191/open-port', { method: 'POST' });
+    const response = await fetch(`http://127.0.0.1:${labControlPort}/open-port`, { method: 'POST' });
     assert(response.status === 200, await response.text());
   });
 
   await step('replace HTTPS certificate', async () => {
-    const response = await fetch('http://127.0.0.1:9191/swap-cert', { method: 'POST' });
+    const response = await fetch(`http://127.0.0.1:${labControlPort}/swap-cert`, { method: 'POST' });
     assert(response.status === 200, await response.text());
   });
 

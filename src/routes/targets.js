@@ -32,7 +32,7 @@ const CreateTargetSchema = z.object({
 const TargetIdSchema = z.string().regex(/^[a-f\d]{24}$/i);
 
 const isDashboardRequest = (req) => req.body?._ui === '1';
-const uiRedirect = (res, message) => res.redirect(`/dashboard?message=${encodeURIComponent(message)}`);
+const uiRedirect = (res, message) => res.redirect(`/dashboard/inventory?message=${encodeURIComponent(message)}`);
 const sendError = (req, res, status, message) => (
   isDashboardRequest(req) ? uiRedirect(res, message) : res.status(status).json({ error: message })
 );
@@ -64,14 +64,17 @@ router.post('/', async (req, res) => {
 
   // FAIL CLOSED: scope gate.
   if (!isIpInScope(ip, config.scopeCidrs)) {
-    await logEvent({
+    const auditDoc = await logEvent({
       event: 'target_out_of_scope',
       actor: req.session?.user || 'anonymous',
       targetId: null,
       ip,
       message: `CREATE DENIED: ${ip} is outside SCOPE_CIDRS`,
     });
-    return sendError(req, res, 400, 'Target IP is outside the authorized scope');
+    const message = auditDoc
+      ? `Blocked: ${ip} is outside the authorized scope (${config.scopeCidrs.join(', ') || 'no scope configured'}). Nothing was sent to it. This attempt was recorded in the audit log.`
+      : 'Blocked: target is outside the allowed scope. Nothing was sent. The audit trail is unavailable, so the attempt could not be recorded.';
+    return sendError(req, res, auditDoc ? 400 : 503, message);
   }
 
   // Check duplicate hostname

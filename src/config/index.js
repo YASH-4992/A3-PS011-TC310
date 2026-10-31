@@ -2,6 +2,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { HTTP_PORTS, TLS_PORTS } from '../utils/ports.js';
 
 /**
  * Environment configuration.
@@ -67,9 +68,9 @@ const booleanish = z
  * SYNTAX: comma-separated string -> array of port numbers.
  * e.g. "80,443,8080" becomes [80, 443, 8080].
  */
-const portList = z
+const portList = (defaultValue = '') => z
   .string()
-  .default('')
+  .default(defaultValue)
   .transform((v) =>
     v
       .split(',')
@@ -141,7 +142,9 @@ const envSchema = z
 
     // ---- Scanner -------------------------------------------------------
     // Empty by default: a fresh install scans nothing (Phase 1 "good" #1).
-    SCAN_PORTS: portList,
+    SCAN_PORTS: portList(),
+    SCAN_TLS_PORTS: portList(TLS_PORTS.join(',')),
+    SCAN_HTTP_PORTS: portList(HTTP_PORTS.join(',')),
     SCAN_MAX_CONCURRENT: z.coerce.number().int().min(1).max(64).default(4),
     SCAN_INTER_PORT_DELAY_MS: z.coerce.number().int().min(0).max(60000).default(150),
     SCAN_CONNECT_TIMEOUT_MS: z.coerce.number().int().min(200).max(60000).default(2000),
@@ -247,6 +250,8 @@ export const config = Object.freeze({
 
   scanner: {
     ports: Object.freeze(env.SCAN_PORTS),
+    tlsPorts: Object.freeze(env.SCAN_TLS_PORTS),
+    httpPorts: Object.freeze(env.SCAN_HTTP_PORTS),
     maxConcurrent: env.SCAN_MAX_CONCURRENT,
     interPortDelayMs: env.SCAN_INTER_PORT_DELAY_MS,
     connectTimeoutMs: env.SCAN_CONNECT_TIMEOUT_MS,

@@ -1,0 +1,35 @@
+<section class="page-intro">
+  <p class="eyebrow">Your authorized monitoring workspace</p>
+  <h1>Overview</h1>
+  <p>A quick view of your inventory, scan results, and detected changes. Use the checklist to see which setup steps are complete.</p>
+</section>
+<section class="summary-grid" aria-label="Inventory summary">
+  <article class="summary-card"><span>Targets</span><strong><%= summary.targets %></strong><a href="/dashboard/inventory">View inventory</a></article>
+  <article class="summary-card"><span>Confirmed targets</span><strong><%= summary.confirmed %></strong><a href="/dashboard/inventory">Review authorization</a></article>
+  <article class="summary-card"><span>Open ports found</span><strong><%= summary.openPorts %></strong><a href="/dashboard/inventory">View scan results</a></article>
+  <article class="summary-card"><span>Changes in last 24 hours</span><strong><%= summary.changes24h %></strong><a href="/dashboard/changes">Review changes</a></article>
+</section>
+<div class="content-columns">
+  <section class="panel">
+    <h2>Getting started</h2>
+    <p class="muted">Progress is based on the targets, scans, and changes currently recorded.</p>
+    <ol class="checklist">
+      <% for (const [index, step] of steps.entries()) { %>
+        <li class="<%= step.done ? 'is-done' : 'is-pending' %>">
+          <span class="check-icon" aria-hidden="true"><%= step.done ? '✓' : index + 1 %></span>
+          <span><strong><%= step.title %></strong><small><%= step.detail %></small></span>
+          <span class="check-state"><%= step.done ? 'Done' : 'Not done' %></span>
+        </li>
+      <% } %>
+    </ol>
+    <a class="button button-primary" href="/dashboard/inventory">Go to inventory</a>
+  </section>
+  <aside class="panel scope-panel">
+    <div class="scope-icon" aria-hidden="true">◎</div>
+    <h2>Scope &amp; Authorization</h2>
+    <p>This tool can only scan addresses in:</p>
+    <p class="scope-value"><%= scopeText %></p>
+    <p class="notice notice-info">Anything outside this range is blocked and logged.</p>
+    <p class="small muted">Targets also require operator confirmation and proof verification before scanning.</p>
+  </aside>
+</div>

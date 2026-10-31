@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import helmet from 'helmet';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
@@ -15,6 +17,8 @@ import dashboardRoutes from './routes/dashboard.js';
 import { authMiddleware } from './middleware/auth.js';
 import { csrfMiddleware, csrfCookieMiddleware } from './middleware/csrf.js';
 import { errorMiddleware } from './middleware/error.js';
+
+const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
 /**
  * Creates the Express application.
@@ -70,6 +74,7 @@ export const createApp = ({ sessionStore, scanOptions = {} } = {}) => {
     crossOriginEmbedderPolicy: false,
   }));
 
+  app.use(express.static(publicDirectory, { index: false, fallthrough: true }));
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
@@ -138,7 +143,7 @@ export const createApp = ({ sessionStore, scanOptions = {} } = {}) => {
   // Scan control: POST /api/scan/:targetId starts a scan, GET /api/scans/:scanId
   // reports its status. Mounted at '/api' because the two paths differ.
   app.use('/api', ...protectedMiddleware, scanRoutes);
-  // UI dashboard - placeholder; real views land in a later slice.
+  // Authenticated dashboard pages.
   app.use('/', ...protectedMiddleware, dashboardRoutes);
   // Remaining API route groups are added in subsequent slices:
   // app.use('/api', ...protectedMiddleware, scopeRoutes);

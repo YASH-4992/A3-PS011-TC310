@@ -10,8 +10,9 @@ Updated 2026-10-31. This log describes the implementation currently in the repos
 | Scope, authorization, proof, and audit | Target IP scope gate at creation; operator confirmation checkbox; nonce proof at a configurable HTTP port; insert-only audit writes and read-only route. | Scope/confirmation tests; proof flow in `npm run verify`. |
 | Scanner and snapshots | Real TCP/TLS/HTTP discovery on configured server-side ports; pinned IPs, timeouts, concurrency/delay limits, per-target lock, persisted scan jobs/snapshots. | Real ephemeral TCP and HTTP server tests; lab scans in `npm run verify`. |
 | Diff and alerts | Pure baseline-aware diff; port opened/closed, banner/certificate changes, host added/removed; snapshot references; plain-text log alert per saved change. | `tests/unit/diffEngine.test.js`; verified port and certificate changes. |
-| Local lab and dashboard | HTTP/HTTPS/proof lab, optional extra TCP port, certificate rotation, shared escaped EJS layout and Inventory/Changes/Audit pages. | Dashboard route tests and E2E lab. |
+| Local lab and dashboard | HTTP/HTTPS/proof lab, optional extra TCP port, certificate rotation, and authenticated escaped EJS Overview/Inventory/Changes/Audit/How-it-works pages with same-origin responsive CSS. | Dashboard route/CSP tests and E2E lab. |
 | End-to-end verification | Isolated dynamic MongoDB database and assertions for login, target authorization, proof, scans, changes, out-of-scope refusal, and audit. | `npm run verify`. |
+| Evaluator presentation | Plain-language workflow, status/help panels, evaluator guide, architecture and threat model, screenshot placeholders, and timed demo. | Documentation reflects implemented behavior and explicitly labels future work. |
 
 ## Current commands
 

@@ -1,20 +1,30 @@
-<section>
-  <h2>Append-only audit log</h2>
-  <p class="muted">Read-only view. Audit entries are inserted by server actions and are not editable here.</p>
-  <% if (events.length === 0) { %><p>No audit events recorded.</p><% } %>
-  <table>
-    <thead><tr><th>When</th><th>Event</th><th>Actor</th><th>Target</th><th>Address</th><th>Message</th></tr></thead>
-    <tbody>
-      <% for (const event of events) { %>
-        <tr>
-          <td class="nowrap"><%= new Date(event.createdAt).toLocaleString() %></td>
-          <td><%= event.event %></td>
-          <td><%= event.actor %></td>
-          <td><%= event.targetId || '—' %></td>
-          <td><%= event.ip || '—' %></td>
-          <td><%= event.message %></td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
+<section class="page-intro">
+  <p class="eyebrow">Accountability and review</p>
+  <h1>Audit log</h1>
+  <p>This read-only timeline records operator actions and security decisions, including attempts that were blocked.</p>
+</section>
+<section class="panel">
+  <div class="notice notice-info">Audit entries are append-only in the application. They cannot be edited or deleted from this page.</div>
+  <% if (events.length === 0) { %>
+    <div class="empty-state compact"><h2>No audit entries yet</h2><p>Sign-ins and target actions will appear here.</p></div>
+  <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>When</th><th>Decision</th><th>Action</th><th>Operator</th><th>Target</th><th>Details</th></tr></thead>
+        <tbody>
+          <% for (const event of events) { %>
+            <% const denied = ['login_failure', 'target_action_denied', 'target_out_of_scope'].includes(event.event) || /denied/i.test(event.message); %>
+            <tr>
+              <td class="nowrap"><%= new Date(event.createdAt).toLocaleString() %></td>
+              <td><span class="decision-badge <%= denied ? 'decision-denied' : 'decision-allowed' %>"><%= denied ? 'Denied' : 'Allowed' %></span></td>
+              <td><%= event.event.replaceAll('_', ' ') %></td>
+              <td><%= event.actor %></td>
+              <td><%= event.targetId || event.ip || '—' %></td>
+              <td><%= event.message %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
 </section>

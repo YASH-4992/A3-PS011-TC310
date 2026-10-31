@@ -1,73 +1,127 @@
-<section>
-  <h2>Add an authorized target</h2>
-  <p class="muted">Only targets inside the configured SCOPE_CIDRS boundary can be saved.</p>
-  <form class="stack" method="post" action="/api/targets">
+<section class="page-intro">
+  <p class="eyebrow">Authorized asset list</p>
+  <h1>Inventory</h1>
+  <p>See the systems you have added and what the latest successful scan observed. Confirm authorization and verify the target's proof before scanning.</p>
+</section>
+
+<section class="panel">
+  <h2>Add a target</h2>
+  <p class="muted">Only addresses inside the configured scope can be added. Adding a target does not scan it.</p>
+  <form class="form-grid" method="post" action="/api/targets">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="hidden" name="_ui" value="1">
-    <label>Hostname (or enter the IP address again)
-      <input name="hostname" maxlength="255" required>
+    <label>Hostname or IP
+      <input name="hostname" maxlength="255" required placeholder="127.0.0.1">
     </label>
-    <label>IP address used for the initial scope check
-      <input name="ip" required>
+    <label>IP address for scope check
+      <input name="ip" required placeholder="127.0.0.1">
     </label>
-    <label>Label
-      <input name="label" maxlength="120">
+    <label>Friendly name <span class="optional">(optional)</span>
+      <input name="label" maxlength="120" placeholder="Local demo">
     </label>
-    <label class="inline-form">
+    <label class="checkbox-label form-span">
       <input type="checkbox" name="authorized" value="true" required>
-      I am authorized to inventory this system.
+      I confirm that I am authorized to inventory this system.
     </label>
-    <button type="submit">Add target</button>
+    <div class="form-span"><button class="button button-primary" type="submit">Add target</button></div>
   </form>
 </section>
 
 <section>
-  <h2>Inventory</h2>
+  <div class="section-heading">
+    <div><h2>Targets</h2><p class="muted">The status below shows the next safe action available.</p></div>
+    <span class="count-pill"><%= targets.length %> total</span>
+  </div>
   <% if (targets.length === 0) { %>
-    <p class="muted">No targets have been added.</p>
+    <div class="empty-state">
+      <div class="empty-icon" aria-hidden="true">+</div>
+      <h3>Your inventory is empty</h3>
+      <p>Add a system you own or are authorized to assess. It will not be contacted until the authorization and proof checks are complete.</p>
+    </div>
   <% } %>
+  <div class="card-list">
   <% for (const target of targets) { %>
-    <article class="card">
-      <h3><%= target.hostname %> <span class="muted">(<%= target.ip %>)</span></h3>
-      <p>Status: <strong><%= target.status %></strong> · Label: <%= target.label || 'None' %></p>
-      <% if (target.proofNonce) { %><p>Proof nonce for the authorized lab: <code><%= target.proofNonce %></code></p><% } %>
-      <p>
-        Authorization: <%= target.confirmedAt ? `confirmed by ${target.confirmedBy} at ${new Date(target.confirmedAt).toLocaleString()}` : 'not confirmed' %>
-      </p>
+    <% const status = target.latestSnapshot ? 'Scanned' : (target.status === 'proof_verified' ? 'Proof verified' : (target.confirmedAt ? 'Authorized' : 'Pending')); %>
+    <article class="target-card">
+      <div class="target-heading">
+        <div>
+          <h3><%= target.label || target.hostname %></h3>
+          <p class="target-address"><%= target.hostname %> · <%= target.ip %></p>
+        </div>
+        <span class="status-badge status-<%= status.toLowerCase().replaceAll(' ', '-') %>"><%= status %></span>
+      </div>
+      <div class="target-facts">
+        <span>Authorization: <strong><%= target.confirmedAt ? `confirmed by ${target.confirmedBy} on ${new Date(target.confirmedAt).toLocaleString()}` : 'not confirmed' %></strong></span>
+        <% if (target.latestSnapshot) { %>
+          <span>Last successful scan: <strong><%= new Date(target.latestSnapshot.completedAt || target.latestSnapshot.createdAt).toLocaleString() %></strong></span>
+          <span>Successful scans: <strong><%= target.successfulScans %></strong></span>
+        <% } %>
+      </div>
+      <% if (target.proofNonce) { %>
+        <div class="notice notice-info proof-note">
+          <strong>Proof file needed:</strong> make this exact value available at <code>/.well-known/as-inventory-auth.txt</code> on the target:
+          <code class="proof-nonce"><%= target.proofNonce %></code>
+        </div>
+      <% } %>
       <% if (target.status === 'pending') { %>
-        <form class="inline-form" method="post" action="/api/targets/<%= target._id %>/confirm">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="hidden" name="_ui" value="1">
-          <label><input type="checkbox" name="authorized" value="true" required> I confirm authorization</label>
-          <button type="submit">Confirm</button>
-        </form>
+        <div class="action-row">
+          <form method="post" action="/api/targets/<%= target._id %>/confirm">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="_ui" value="1">
+            <label class="checkbox-label"><input type="checkbox" name="authorized" value="true" required> I confirm authorization</label>
+            <button class="button button-secondary" type="submit">Confirm authorization</button>
+            <p class="action-hint">Records who approved this target and when. No scan is started.</p>
+          </form>
+        </div>
       <% } %>
       <% if (target.status === 'confirmed') { %>
-        <form class="inline-form" method="post" action="/api/targets/<%= target._id %>/verify-proof">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="hidden" name="_ui" value="1">
-          <button type="submit">Verify proof</button>
-        </form>
+        <div class="action-row">
+          <form method="post" action="/api/targets/<%= target._id %>/verify-proof">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="_ui" value="1">
+            <button class="button button-secondary" type="submit">Verify proof</button>
+            <p class="action-hint">Checks the target's authorization proof file without following redirects.</p>
+          </form>
+        </div>
       <% } %>
-      <% if (target.status === 'proof_verified') { %>
-        <form class="inline-form" method="post" action="/api/scan/<%= target._id %>">
-          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-          <input type="hidden" name="_ui" value="1">
-          <button type="submit">Scan now</button>
-        </form>
+      <% if (target.status === 'proof_verified' || (target.status === 'confirmed' && !target.proofNonce)) { %>
+        <div class="action-row">
+          <form method="post" action="/api/scan/<%= target._id %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="_ui" value="1">
+            <button class="button button-primary" type="submit">Scan now</button>
+            <p class="action-hint">Starts a discovery-only scan of configured ports within the allowed scope.</p>
+          </form>
+        </div>
       <% } %>
       <% if (target.latestSnapshot) { %>
-        <h4>Latest successful scan · <%= new Date(target.latestSnapshot.completedAt || target.latestSnapshot.createdAt).toLocaleString() %></h4>
-        <% if (target.latestSnapshot.ports.length === 0) { %><p>No open configured ports found.</p><% } %>
-        <% for (const entry of target.latestSnapshot.ports) { %>
-          <p>
-            Port <%= entry.port %>/<%= entry.protocol %>
-            <% if (entry.banner) { %> · Banner: <%= entry.banner %><% } %>
-            <% if (entry.http) { %> · HTTP <%= entry.http.status %> · Server: <%= entry.http.server || 'unknown' %> · Title: <%= entry.http.title || 'none' %><% } %>
-            <% if (entry.tls) { %> · Certificate expires: <%= entry.tls.notAfter ? new Date(entry.tls.notAfter).toLocaleString() : 'unknown' %><% } %>
-          </p>
-        <% } %>
+        <div class="observations">
+          <h4>Latest scan results</h4>
+          <% if (!target.latestSnapshot.ports || target.latestSnapshot.ports.length === 0) { %>
+            <p class="muted">No open configured ports were found.</p>
+          <% } else { %>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Port</th><th>Service details</th><th>Certificate expiry</th></tr></thead>
+                <tbody>
+                  <% for (const entry of target.latestSnapshot.ports) { %>
+                    <tr>
+                      <td><strong><%= entry.port %>/<%= entry.protocol %></strong></td>
+                      <td>
+                        <% if (entry.banner) { %>Banner: <%= entry.banner %><% } %>
+                        <% if (entry.http) { %><%= entry.banner ? ' · ' : '' %>HTTP <%= entry.http.status %>, server <%= entry.http.server || 'unknown' %><%= entry.http.title ? `, title ${entry.http.title}` : '' %><% } %>
+                        <% if (!entry.banner && !entry.http) { %>No banner information returned<% } %>
+                      </td>
+                      <td><%= entry.tls?.notAfter ? new Date(entry.tls.notAfter).toLocaleString() : 'Not observed' %></td>
+                    </tr>
+                  <% } %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
       <% } %>
     </article>
   <% } %>
+  </div>
 </section>

@@ -50,6 +50,12 @@ describe('Auth middleware', () => {
     const res = await request(app).get('/login');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.text).toContain('Authorized discovery and change monitoring');
+    expect(res.text).toContain('href="/css/app.css"');
+    expect(res.headers['content-security-policy']).toContain("style-src 'self'");
+    const stylesheet = await request(app).get('/css/app.css');
+    expect(stylesheet.status).toBe(200);
+    expect(stylesheet.text).toContain('.login-card');
   });
 
   test('Protected UI route without session redirects to /login', async () => {
@@ -65,6 +71,7 @@ describe('Auth middleware', () => {
       .type('form')
       .send({ username: 'admin', password: 'wrongpassword' });
     expect(res.status).toBe(401);
+    expect(res.text).toContain('Invalid credentials');
   });
 
   test('Login with correct password creates a session', async () => {
