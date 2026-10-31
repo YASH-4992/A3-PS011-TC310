@@ -57,14 +57,14 @@ if (process.env.NODE_ENV === 'test') {
   const inRes = await agent
     .post('/api/targets')
     .set('x-csrf-token', csrfToken)
-    .send({ hostname: 'lab', ip: '127.0.0.1' });
+    .send({ hostname: 'lab', ip: '127.0.0.1', authorized: true });
   console.log('In-scope POST /api/targets ->', inRes.status, inRes.body.id ? 'created' : inRes.body.error);
 
   // 4) Out-of-scope target (8.8.8.8)
   const outRes = await agent
     .post('/api/targets')
     .set('x-csrf-token', csrfToken)
-    .send({ hostname: 'google', ip: '8.8.8.8' });
+    .send({ hostname: 'google', ip: '8.8.8.8', authorized: true });
   console.log('Out-of-scope POST /api/targets ->', outRes.status, outRes.body.error);
 
   // 5) Read back the audit trail

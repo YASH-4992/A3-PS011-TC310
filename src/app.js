@@ -26,8 +26,9 @@ import { errorMiddleware } from './middleware/error.js';
  * @param {import('express-session').Store} opts.sessionStore - Custom session store (e.g. MemoryStore for tests).
  * @returns {import('express').Express}
  */
-export const createApp = ({ sessionStore } = {}) => {
+export const createApp = ({ sessionStore, scanOptions = {} } = {}) => {
   const app = express();
+  app.locals.scanOptions = scanOptions;
 
   // Trust proxy if behind a load balancer / reverse proxy (needed for
   // `req.ip` and secure cookies to work correctly).
@@ -73,13 +74,15 @@ export const createApp = ({ sessionStore } = {}) => {
   app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
   // Session store - defaults to MongoDB, but can be swapped in tests.
-  const store = sessionStore || MongoStore.create({
-    mongoUrl: config.mongo.uri,
-    dbName: config.mongo.dbName,
-    collectionName: 'sessions',
-    ttl: config.session.ttlMinutes * 60,
-    autoRemove: 'native',
-  });
+  const store = sessionStore || (config.isTest
+    ? new session.MemoryStore()
+    : MongoStore.create({
+      mongoUrl: config.mongo.uri,
+      dbName: config.mongo.dbName,
+      collectionName: 'sessions',
+      ttl: config.session.ttlMinutes * 60,
+      autoRemove: 'native',
+    }));
 
   app.use(session({
     name: config.session.cookieName,
@@ -118,7 +121,7 @@ export const createApp = ({ sessionStore } = {}) => {
   });
 
   // Login must be reachable while logged out; rate limited + CSRF cookie.
-  app.use('/login', loginLimiter, csrfCookieMiddleware, authRoutes);
+  app.use('/login', loginLimiter, csrfCookieMiddleware, csrfMiddleware, authRoutes);
 
   // Everything below requires a session. CSRF is checked for state-changing verbs.
   const protectedMiddleware = [authMiddleware, csrfMiddleware];

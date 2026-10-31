@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import config from '../config/index.js';
 
 /**
  * Proof verification service.
@@ -14,10 +15,11 @@ import logger from '../utils/logger.js';
  *
  * SYNTAX: Node 22+ has global `fetch` – no import needed.
  */
-export const verifyProof = async ({ ip, nonce, timeoutMs = 3000 }) => {
+export const verifyProof = async ({ ip, nonce, timeoutMs = 3000, port = config.proof.httpPort }) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  const url = `http://${ip}/.well-known/as-inventory-auth.txt`;
+  const host = ip.includes(':') ? `[${ip}]` : ip;
+  const url = `http://${host}:${port}/.well-known/as-inventory-auth.txt`;
   try {
     // `redirect: 'error'` – we NEVER follow redirects. A redirect could send
     // us to a host outside the authorized scope, which would defeat the

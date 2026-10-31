@@ -17,6 +17,8 @@ const AuditSchema = new mongoose.Schema(
         'target_created',
         'target_deleted',
         'target_confirmed',
+        'target_action_requested',
+        'target_action_denied',
         'target_proof_verified',
         'target_out_of_scope',
         'scan_requested',

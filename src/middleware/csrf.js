@@ -38,9 +38,11 @@ function tokensMatch(a, b) {
 export const csrfCookieMiddleware = (req, res, next) => {
   const cookieName = 'csrf_token';
   const cookieToken = readCookie(req, cookieName);
+  res.locals.csrfToken = cookieToken || '';
 
   if (SAFE_METHODS.includes(req.method) && !cookieToken) {
     const token = crypto.randomBytes(32).toString('hex');
+    res.locals.csrfToken = token;
     res.cookie(cookieName, token, {
       httpOnly: false,
       secure: config.session.cookieSecure,

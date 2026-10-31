@@ -1,0 +1,19 @@
+<section>
+  <h2>Change feed</h2>
+  <% if (changes.length === 0) { %><p class="muted">No changes recorded. A first successful scan is the baseline.</p><% } %>
+  <table>
+    <thead><tr><th>When</th><th>Severity</th><th>Change</th><th>Target</th><th>Port</th><th>Snapshot</th></tr></thead>
+    <tbody>
+      <% for (const change of changes) { %>
+        <tr>
+          <td class="nowrap"><%= new Date(change.createdAt).toLocaleString() %></td>
+          <td><%= change.severity %></td>
+          <td><%= change.type %> · <%= change.details %></td>
+          <td><%= change.target %></td>
+          <td><%= change.port || '—' %></td>
+          <td><%= change.snapshotId %> / <%= change.previousSnapshotId %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</section>

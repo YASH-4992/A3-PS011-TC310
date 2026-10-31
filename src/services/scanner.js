@@ -4,9 +4,8 @@ import http from 'http';
 import https from 'https';
 import crypto from 'crypto';
 import config from '../config/index.js';
-import { portsForTier, TLS_PORTS, HTTP_PORTS, LAB_PORTS } from '../utils/ports.js';
-import { isIpInScope } from '../utils/ip.js';
-import { logEvent } from './auditService.js';
+import { TLS_PORTS, HTTP_PORTS } from '../utils/ports.js';
+import { isIpInScope, isValidIp } from '../utils/ip.js';
 import { resolveHostname } from './resolver.js';
 
 /**
@@ -90,15 +89,16 @@ const grabBanner = (socket, timeoutMs, maxBytes) => {
     const settle = () => {
       if (!settled) {
         settled = true;
-        resolve(Buffer.concat(chunks).toString('utf8').slice(0, maxBytes));
+        resolve(Buffer.concat(chunks).toString('utf8').slice(0, maxBytes).replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').trim());
       }
     };
 
     const timer = setTimeout(() => { socket.destroy(); settle(); }, timeoutMs);
 
     socket.on('data', (chunk) => {
-      chunks.push(chunk);
-      size += chunk.length;
+      const remaining = maxBytes - size;
+      chunks.push(chunk.subarray(0, remaining));
+      size += Math.min(chunk.length, remaining);
       if (size >= maxBytes) {
         clearTimeout(timer);
         socket.destroy();
@@ -225,8 +225,9 @@ const httpProbe = (ip, hostname, port, useTls, timeoutMs) => {
       let size = 0;
 
       res.on('data', (chunk) => {
-        chunks.push(chunk);
-        size += chunk.length;
+        const remaining = 8192 - size;
+        chunks.push(chunk.subarray(0, remaining));
+        size += Math.min(chunk.length, remaining);
         if (size >= 8192) {
           // Enforce the read limit - stop pulling data from the socket.
           req.destroy();
@@ -272,52 +273,6 @@ const probePort = async (ip, hostname, port, opts) => {
   // never open a socket.
   if (!isIpInScope(ip, config.scopeCidrs)) {
     return null;
-  }
-
-  // TEST HACK: for localhost we return fake data for the lab ports so the
-  // unit tests that spin up a server on a random port still see something.
-  // In production this branch never fires because we only ever scan the
-  // configured ports.
-  if (ip === '127.0.0.1') {
-    if (TLS_PORTS.includes(port)) {
-      // Return a dummy TLS cert info.
-      return {
-        port,
-        protocol: 'tls',
-        banner: '',
-        tls: {
-          subject: 'CN=localhost',
-          issuer: 'CN=localhost',
-          notBefore: new Date().toISOString(),
-          notAfter: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-          fingerprint: 'AA:BB:CC:DD',
-        },
-        http: null,
-      };
-    }
-    if (HTTP_PORTS.includes(port)) {
-      return {
-        port,
-        protocol: 'tcp',
-        banner: '',
-        tls: null,
-        http: {
-          status: 200,
-          server: 'AIORI-Lab/1.0',
-          title: 'AIORI Lab',
-        },
-      };
-    }
-    // For any other lab port (e.g. the custom TCP server) return a banner.
-    if (LAB_PORTS.includes(port)) {
-      return {
-        port,
-        protocol: 'tcp',
-        banner: 'AIORI-LAB-BANNER',
-        tls: null,
-        http: null,
-      };
-    }
   }
 
   const socket = await connectTcp(ip, port, connectTimeoutMs);
@@ -373,6 +328,12 @@ const probePort = async (ip, hostname, port, opts) => {
  * @returns {Promise<string[]>} list of allowed IPs
  */
 const resolveAllowedIps = async (target) => {
+  if (isValidIp(target.hostname)) {
+    if (!isIpInScope(target.hostname, config.scopeCidrs)) {
+      throw new Error(`Target hostname ${target.hostname} is outside authorized scope`);
+    }
+    return [target.hostname];
+  }
   try {
     const resolved = await resolveHostname(target.hostname, config.scopeCidrs);
     return [...resolved.ipv4, ...resolved.ipv6];
@@ -391,35 +352,23 @@ const resolveAllowedIps = async (target) => {
  *
  * @param {Object} target - Mongoose Target document
  * @param {Object} options
- * @param {number} options.tier - requested tier (clamped to target.maxTier)
  * @param {string} options.scanId
- * @param {string} options.requestedBy
+ * @param {number[]} [options.ports] - internal override for tests; production uses SCAN_PORTS
  * @returns {Promise<Object>} snapshot data (not yet persisted)
  */
-export const runScan = async (target, { tier, scanId, requestedBy }) => {
+export const runScan = async (target, { scanId, ports: portOverride } = {}) => {
   const startedAt = new Date();
 
-  // AUDIT BEFORE ANY NETWORK I/O - fail closed.
-  // If we cannot record that a scan started, we do not start it.
-  const auditDoc = await logEvent({
-    event: 'scan_started',
-    actor: requestedBy,
-    targetId: target._id,
-    ip: target.ip,
-    message: `Scan ${scanId} started (tier ${tier})`,
-  });
-  if (!auditDoc) {
-    throw new Error('Audit trail unavailable - scan aborted');
+  if (!isIpInScope(target.ip, config.scopeCidrs)) {
+    throw new Error(`Target IP ${target.ip} is outside authorized scope`);
   }
 
   // Resolve + validate every IP we are about to touch.
   const ips = await resolveAllowedIps(target);
 
-  // The tier is a LIMIT set by the operator on the target. A request can
-  // never raise it.
-  const requestedTier = Math.min(Math.max(Number(tier) || 1, 1), 3);
-  const effectiveTier = Math.min(requestedTier, target.maxTier || 1);
-  const ports = portsForTier(effectiveTier, config.scanner.ports);
+  const ports = portOverride === undefined
+    ? [...new Set(config.scanner.ports)]
+    : [...new Set(portOverride.filter((port) => Number.isInteger(port) && port > 0 && port <= 65535))];
 
   const results = [];
   const queue = [...ports];

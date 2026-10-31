@@ -1,0 +1,20 @@
+<section>
+  <h2>Append-only audit log</h2>
+  <p class="muted">Read-only view. Audit entries are inserted by server actions and are not editable here.</p>
+  <% if (events.length === 0) { %><p>No audit events recorded.</p><% } %>
+  <table>
+    <thead><tr><th>When</th><th>Event</th><th>Actor</th><th>Target</th><th>Address</th><th>Message</th></tr></thead>
+    <tbody>
+      <% for (const event of events) { %>
+        <tr>
+          <td class="nowrap"><%= new Date(event.createdAt).toLocaleString() %></td>
+          <td><%= event.event %></td>
+          <td><%= event.actor %></td>
+          <td><%= event.targetId || '—' %></td>
+          <td><%= event.ip || '—' %></td>
+          <td><%= event.message %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</section>

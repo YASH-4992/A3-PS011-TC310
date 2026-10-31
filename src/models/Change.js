@@ -13,8 +13,8 @@ import mongoose from 'mongoose';
 const ChangeSchema = new mongoose.Schema(
   {
     target: { type: mongoose.Schema.Types.ObjectId, ref: 'Target', required: true, index: true },
-    snapshot: { type: mongoose.Schema.Types.ObjectId, ref: 'Snapshot', required: true },
-    previousSnapshot: { type: mongoose.Schema.Types.ObjectId, ref: 'Snapshot', default: null },
+    snapshotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Snapshot', required: true },
+    previousSnapshotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Snapshot', required: true },
     type: {
       type: String,
       enum: [

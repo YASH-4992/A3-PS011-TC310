@@ -27,7 +27,6 @@ const TargetSchema = new mongoose.Schema(
     confirmedAt: { type: Date, default: null },
     proofNonce: { type: String, default: null },
     proofVerifiedAt: { type: Date, default: null },
-    maxTier: { type: Number, enum: [1, 2, 3], default: 2 }, // tier control
   },
   { timestamps: true },
 );

@@ -43,6 +43,7 @@ describe('Target routes', () => {
   });
 
   afterAll(async () => {
+    await Promise.all([Target.deleteMany({}), Audit.deleteMany({})]);
     await disconnectMongo();
   });
 
@@ -50,7 +51,7 @@ describe('Target routes', () => {
     const res = await agent
       .post('/api/targets')
       .set('x-csrf-token', csrfToken)
-      .send({ hostname: 'in-scope', ip: '127.0.0.1' });
+      .send({ hostname: 'in-scope', ip: '127.0.0.1', authorized: true });
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('id');
     expect(res.body.hostname).toBe('in-scope');
@@ -61,7 +62,7 @@ describe('Target routes', () => {
     const res = await agent
       .post('/api/targets')
       .set('x-csrf-token', csrfToken)
-      .send({ hostname: 'out-of-scope', ip: '8.8.8.8' });
+      .send({ hostname: 'out-of-scope', ip: '8.8.8.8', authorized: true });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/outside the authorized scope/i);
   });
@@ -70,7 +71,7 @@ describe('Target routes', () => {
     const res = await agent
       .post('/api/targets')
       .set('x-csrf-token', csrfToken)
-      .send({ hostname: 'bad', ip: 'not-an-ip' });
+      .send({ hostname: 'bad', ip: 'not-an-ip', authorized: true });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/invalid ip/i);
   });
@@ -86,8 +87,49 @@ describe('Target routes', () => {
     await agent
       .post('/api/targets')
       .set('x-csrf-token', csrfToken)
-      .send({ hostname: 'oos2', ip: '8.8.4.4' });
+      .send({ hostname: 'oos2', ip: '8.8.4.4', authorized: true });
     const auditAfter = await Audit.countDocuments({ event: 'target_out_of_scope' });
     expect(auditAfter).toBe(auditBefore + 1);
+  });
+
+  test('authorization confirmation requires the checkbox and stores operator facts', async () => {
+    const created = await agent
+      .post('/api/targets')
+      .set('x-csrf-token', csrfToken)
+      .send({ hostname: 'confirm-lab', ip: '127.0.0.1', authorized: true });
+
+    const denied = await agent
+      .post(`/api/targets/${created.body.id}/confirm`)
+      .set('x-csrf-token', csrfToken)
+      .send({});
+    expect(denied.status).toBe(400);
+
+    const confirmed = await agent
+      .post(`/api/targets/${created.body.id}/confirm`)
+      .set('x-csrf-token', csrfToken)
+      .send({ authorized: true });
+    expect(confirmed.status).toBe(200);
+    expect(confirmed.body.confirmedBy).toBe(config.admin.username);
+    expect(confirmed.body.confirmedAt).toBeTruthy();
+  });
+
+  test('dashboard pages render inventory with escaped content and authenticated navigation', async () => {
+    const created = await agent
+      .post('/api/targets')
+      .set('x-csrf-token', csrfToken)
+      .send({
+        hostname: 'escaped-lab',
+        ip: '127.0.0.1',
+        label: '<script>alert(1)</script>',
+        authorized: true,
+      });
+    expect(created.status).toBe(201);
+
+    const inventory = await agent.get('/dashboard');
+    expect(inventory.status).toBe(200);
+    expect(inventory.text).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(inventory.text).not.toContain('<script>alert(1)</script>');
+    expect((await agent.get('/dashboard/changes')).status).toBe(200);
+    expect((await agent.get('/dashboard/audit')).status).toBe(200);
   });
 });

@@ -1,5 +1,9 @@
+import { afterAll } from '@jest/globals';
 import request from 'supertest';
 import createApp from '../../src/app.js';
+import config from '../../src/config/index.js';
+import { disconnectMongo } from '../../src/utils/logger.js';
+import Audit from '../../src/models/Audit.js';
 
 /**
  * Helper to create an app instance with an in‑memory session store.
@@ -17,6 +21,11 @@ describe('CSRF middleware', () => {
     app = await makeApp();
   });
 
+  afterAll(async () => {
+    await Audit.deleteMany({});
+    await disconnectMongo();
+  });
+
   test('GET /login sets CSRF cookie', async () => {
     const res = await request(app).get('/login');
     expect(res.status).toBe(200);
@@ -26,20 +35,18 @@ describe('CSRF middleware', () => {
   });
 
   test('POST without CSRF token on protected route returns 403', async () => {
-    // First log in to get a valid session cookie
-    const loginRes = await request(app)
-      .post('/login')
-      .type('form')
-      .send({ username: 'admin', password: 'strongpassword123' });
-    expect(loginRes.status).toBe(302);
-
     const agent = request.agent(app);
+    const loginPage = await agent.get('/login');
+    const csrfToken = loginPage.headers['set-cookie']
+      .find((cookie) => cookie.startsWith('csrf_token='))
+      .match(/csrf_token=([^;]+)/)[1];
 
-    // Log in through the agent so the session cookie is kept
-    await agent
+    const loginRes = await agent
       .post('/login')
+      .set('x-csrf-token', csrfToken)
       .type('form')
-      .send({ username: 'admin', password: 'strongpassword123' });
+      .send({ username: config.admin.username, password: config.admin.password });
+    expect(loginRes.status).toBe(302);
 
     // Now POST to a protected route WITHOUT a CSRF token -> 403
     const res = await agent.post('/logout').send({});

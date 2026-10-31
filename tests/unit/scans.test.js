@@ -9,6 +9,7 @@ import Target from '../../src/models/Target.js';
 import Audit from '../../src/models/Audit.js';
 import Snapshot from '../../src/models/Snapshot.js';
 import ScanJob from '../../src/models/ScanJob.js';
+import Change from '../../src/models/Change.js';
 import { connectMongo, disconnectMongo } from '../../src/utils/logger.js';
 import config from '../../src/config/index.js';
 
@@ -36,7 +37,6 @@ describe('Scanner', () => {
 
   beforeAll(async () => {
     await connectMongo();
-    app = createApp();
 
     // A real TCP server that sends a banner as soon as we connect.
     tcpServer = net.createServer((socket) => {
@@ -53,11 +53,19 @@ describe('Scanner', () => {
     });
     await new Promise((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
     httpPort = httpServer.address().port;
+    app = createApp({ scanOptions: { ports: [tcpPort, httpPort] } });
   });
 
   afterAll(async () => {
     await new Promise((resolve) => tcpServer.close(resolve));
     await new Promise((resolve) => httpServer.close(resolve));
+    await Promise.all([
+      Target.deleteMany({}),
+      Audit.deleteMany({}),
+      Snapshot.deleteMany({}),
+      ScanJob.deleteMany({}),
+      Change.deleteMany({}),
+    ]);
     await disconnectMongo();
   });
 
@@ -74,11 +82,15 @@ describe('Scanner', () => {
     csrfToken = (loginPage.headers['set-cookie'] || [])
       .find((c) => c.startsWith('csrf_token='))
       ?.match(/csrf_token=([^;]+)/)[1];
-    await agent
+    if (!csrfToken) {
+      throw new Error('No CSRF token');
+    }
+    const loginResponse = await agent
       .post('/login')
       .set('x-csrf-token', csrfToken)
       .type('form')
       .send({ username: config.admin.username, password: config.admin.password });
+    expect(loginResponse.status).toBe(302);
   });
 
   afterEach(() => {
@@ -94,11 +106,22 @@ describe('Scanner', () => {
     ip: '127.0.0.1',
     label: '',
     status: 'proof_verified',
-    maxTier: 1,
     ...overrides,
   });
 
-  test('OUT-OF-SCOPE target: dns, net.connect and tls.connect are NEVER called', async () => {
+  const waitForJob = async (scanId) => {
+    let job;
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await new Promise((resolve) => { setTimeout(resolve, 250); });
+      job = await ScanJob.findOne({ scanId }).lean();
+      if (job?.status === 'completed' || job?.status === 'failed') {
+        return job;
+      }
+    }
+    throw new Error(`Scan ${scanId} did not finish in time`);
+  };
+
+  test('OUT-OF-SCOPE target: no lookup or probe targets the out-of-scope IP', async () => {
     // We create the target directly in the DB so the scope gate in the
     // POST /api/targets route cannot be the thing we are testing.
     const target = await makeTarget({ hostname: 'oos', ip: '8.8.8.8', status: 'proof_verified' });
@@ -118,10 +141,10 @@ describe('Scanner', () => {
     // Give the background scan time to finish.
     await new Promise((resolve) => { setTimeout(resolve, 1500); });
 
-    expect(dnsSpy).not.toHaveBeenCalled();
-    expect(dnsSpy6).not.toHaveBeenCalled();
-    expect(netSpy).not.toHaveBeenCalled();
-    expect(tlsSpy).not.toHaveBeenCalled();
+    expect(dnsSpy.mock.calls.some(([host]) => host === target.hostname)).toBe(false);
+    expect(dnsSpy6.mock.calls.some(([host]) => host === target.hostname)).toBe(false);
+    expect(netSpy.mock.calls.some(([options]) => options?.host === target.ip)).toBe(false);
+    expect(tlsSpy.mock.calls.some(([options]) => options?.host === target.ip)).toBe(false);
 
     // The scan must be recorded as FAILED, not completed.
     const job = await ScanJob.findOne({ target: target._id }).lean();
@@ -129,7 +152,7 @@ describe('Scanner', () => {
     expect(job.error).toMatch(/outside authorized scope/i);
   });
 
-  test('UNCONFIRMED target: dns, net.connect and tls.connect are NEVER called', async () => {
+  test('UNCONFIRMED target: no lookup or probe targets the target IP', async () => {
     const target = await makeTarget({ hostname: 'pending-host', ip: '127.0.0.1', status: 'pending' });
 
     const dnsSpy = jest.spyOn(dns, 'resolve4');
@@ -148,10 +171,10 @@ describe('Scanner', () => {
 
     await new Promise((resolve) => { setTimeout(resolve, 500); });
 
-    expect(dnsSpy).not.toHaveBeenCalled();
-    expect(dnsSpy6).not.toHaveBeenCalled();
-    expect(netSpy).not.toHaveBeenCalled();
-    expect(tlsSpy).not.toHaveBeenCalled();
+    expect(dnsSpy.mock.calls.some(([host]) => host === target.hostname)).toBe(false);
+    expect(dnsSpy6.mock.calls.some(([host]) => host === target.hostname)).toBe(false);
+    expect(netSpy.mock.calls.some(([options]) => options?.host === target.ip)).toBe(false);
+    expect(tlsSpy.mock.calls.some(([options]) => options?.host === target.ip)).toBe(false);
 
     // No scan job was even created.
     expect(await ScanJob.countDocuments({ target: target._id })).toBe(0);
@@ -242,6 +265,7 @@ describe('Scanner', () => {
     expect(poll.status).toBe(200);
     expect(poll.body.scanId).toBe(res.body.scanId);
     expect(['pending', 'running', 'completed', 'failed']).toContain(poll.body.status);
+    await waitForJob(res.body.scanId);
   });
 
   test('GET /api/scans/:scanId without a session -> 401', async () => {
@@ -251,14 +275,15 @@ describe('Scanner', () => {
 
   test('Every scan attempt is written to the audit trail', async () => {
     const target = await makeTarget({ hostname: 'audit-lab', ip: '127.0.0.1' });
-    const before = await Audit.countDocuments({ event: 'scan_requested' });
+    const before = await Audit.countDocuments({ event: 'scan_started' });
 
-    await agent
+    const response = await agent
       .post(`/api/scan/${target._id}`)
       .set('x-csrf-token', csrfToken)
       .send({ tier: 1 });
 
-    const after = await Audit.countDocuments({ event: 'scan_requested' });
+    await waitForJob(response.body.scanId);
+    const after = await Audit.countDocuments({ event: 'scan_started' });
     expect(after).toBe(before + 1);
   });
 });

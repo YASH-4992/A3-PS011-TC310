@@ -14,6 +14,7 @@ import mongoose from 'mongoose';
  *   - http: { status, server, title } | null
  */
 const PortEntrySchema = new mongoose.Schema({
+  ip: { type: String, default: '' },
   port: { type: Number, required: true },
   protocol: { type: String, enum: ['tcp', 'tls'], required: true },
   banner: { type: String, default: '' },

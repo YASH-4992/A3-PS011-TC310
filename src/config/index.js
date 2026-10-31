@@ -156,8 +156,8 @@ const envSchema = z
     // true  -> a target must be `proof_verified` before it can be scanned.
     // false -> `confirmed` is enough (used only if the proof-file check is cut).
     REQUIRE_PROOF_BEFORE_SCAN: booleanish.default(true),
-    PROOF_PATH_TEMPLATE: z.string().min(1).default('/.well-known/{nonce}.txt'),
     PROOF_HTTP_TIMEOUT_MS: z.coerce.number().int().min(200).max(30000).default(3000),
+    PROOF_HTTP_PORT: z.coerce.number().int().min(1).max(65535).default(80),
 
     // ---- Scheduler ------------------------------------------------------
     CRON_ENABLED: booleanish.default(false),
@@ -261,8 +261,8 @@ export const config = Object.freeze({
 
   proof: {
     requiredBeforeScan: env.REQUIRE_PROOF_BEFORE_SCAN,
-    pathTemplate: env.PROOF_PATH_TEMPLATE,
     httpTimeoutMs: env.PROOF_HTTP_TIMEOUT_MS,
+    httpPort: env.PROOF_HTTP_PORT,
   },
 
   scheduler: {

@@ -1,5 +1,9 @@
+import { afterAll } from '@jest/globals';
 import request from 'supertest';
 import createApp from '../../src/app.js';
+import config from '../../src/config/index.js';
+import { disconnectMongo } from '../../src/utils/logger.js';
+import Audit from '../../src/models/Audit.js';
 
 /**
  * Helper to create an app instance with an in‑memory session store.
@@ -12,9 +16,21 @@ async function makeApp() {
 
 describe('Auth middleware', () => {
   let app;
+  let agent;
+  let csrfToken;
 
   beforeAll(async () => {
     app = await makeApp();
+    agent = request.agent(app);
+    const loginPage = await agent.get('/login');
+    csrfToken = loginPage.headers['set-cookie']
+      .find((cookie) => cookie.startsWith('csrf_token='))
+      .match(/csrf_token=([^;]+)/)[1];
+  });
+
+  afterAll(async () => {
+    await Audit.deleteMany({});
+    await disconnectMongo();
   });
 
   test('Protected API route without session returns 401 JSON', async () => {
@@ -43,18 +59,20 @@ describe('Auth middleware', () => {
   });
 
   test('Login with wrong password is rejected', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/login')
+      .set('x-csrf-token', csrfToken)
       .type('form')
       .send({ username: 'admin', password: 'wrongpassword' });
     expect(res.status).toBe(401);
   });
 
   test('Login with correct password creates a session', async () => {
-    const res = await request(app)
+    const res = await agent
       .post('/login')
+      .set('x-csrf-token', csrfToken)
       .type('form')
-      .send({ username: 'admin', password: 'strongpassword123' });
+      .send({ username: config.admin.username, password: config.admin.password });
     expect(res.status).toBe(302);
     expect(res.headers.location).toBe('/dashboard');
     // The session cookie must be set (HttpOnly, SameSite=Strict)

@@ -8,10 +8,14 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "lint": "eslint .",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
     "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/unit",
     "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration",
-    "db:init": "node docker/init-mongo.js"
+    "db:init": "node docker/init-mongo.js",
+    "lab": "node scripts/lab.mjs start",
+    "lab:open-port": "node scripts/lab.mjs open-port",
+    "lab:swap-cert": "node scripts/lab.mjs swap-cert",
+    "verify": "npm run lint && npm test && node scripts/verify.mjs"
   },
   "keywords": [
     "attack-surface",
