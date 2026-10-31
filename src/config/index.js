@@ -209,7 +209,6 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   const details = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
-  // eslint-disable-next-line no-console
   console.error(`Invalid environment configuration:\n${details}\n\nCopy .env.example to .env and set real values.`);
   throw new Error('Invalid environment configuration');
 }

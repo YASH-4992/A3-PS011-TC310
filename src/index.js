@@ -20,13 +20,11 @@ const start = async () => {
 
   const app = createApp();
   app.listen(config.port, () => {
-    // eslint-disable-next-line no-console
     console.log(`Server listening on http://localhost:${config.port}`);
   });
 };
 
 start().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('Fatal error starting server:', err);
   process.exit(1);
 });

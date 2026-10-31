@@ -1,21 +1,25 @@
 import mongoose from 'mongoose';
 
 /**
- * ScanJob – tracks an ongoing scan request.
+ * ScanJob – tracks the lifecycle of an asynchronous scan.
  *
- * The API returns a `scanId` immediately (202 Accepted). The client polls
- * `GET /api/scans/:scanId` until the status is `completed` or `failed`.
- * This keeps the request/response cycle short and avoids HTTP timeouts.
+ * A ScanJob is created when a client requests a scan (POST /api/scan/:id).
+ * It starts with status 'pending', moves to 'running', then 'completed' or
+ * 'failed'. The job stores the requesting user, tier, timestamps and a link to
+ * the resulting Snapshot (if any).
  */
 const ScanJobSchema = new mongoose.Schema(
   {
-    target: { type: mongoose.Schema.Types.ObjectId, ref: 'Target', required: true, index: true },
-    scanId: { type: String, required: true, unique: true, index: true },
-    status: { type: String, enum: ['pending', 'running', 'completed', 'failed'], default: 'pending' },
+    scanId: { type: String, required: true, unique: true },
+    target: { type: mongoose.Schema.Types.ObjectId, ref: 'Target', required: true },
+    status: { type: String, enum: ['pending', 'running', 'completed', 'failed'], required: true },
+    tier: { type: Number, min: 1, max: 3 },
     requestedBy: { type: String, required: true },
-    startedAt: { type: Date, default: null },
-    completedAt: { type: Date, default: null },
-    error: { type: String, default: '' },
+    startedAt: { type: Date },
+    completedAt: { type: Date },
+    durationMs: { type: Number },
+    snapshotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Snapshot' },
+    error: { type: String },
   },
   { timestamps: true },
 );

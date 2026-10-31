@@ -2,6 +2,33 @@ import createApp from '../src/app.js';
 import request from 'supertest';
 import config from '../src/config/index.js';
 
+/**
+ * Step A demonstration script.
+ *
+ * WHAT IT DOES
+ * ------------
+ * 1. Logs in (CSRF token from the login page cookie).
+ * 2. Creates an IN-SCOPE target   -> expect 201.
+ * 3. Creates an OUT-OF-SCOPE target -> expect 400 with a clear error.
+ * 4. Prints the most recent audit entries, proving the denied attempt was
+ *    written to the audit trail.
+ *
+ * SAFETY GUARD
+ * ------------
+ * This script talks to the DEVELOPMENT database (`aiori_asm`). If it is ever
+ * run with `NODE_ENV=test` it would pollute the test database, so we refuse
+ * to start in that case.
+ *
+ * CREDENTIALS
+ * -----------
+ * Read from the environment (`ADMIN_USERNAME` / `ADMIN_PASSWORD`). There is
+ * no password hard-coded in this file.
+ */
+if (process.env.NODE_ENV === 'test') {
+  console.error('Refusing to run: this demo must not touch the test database.');
+  process.exit(1);
+}
+
 (async () => {
   const app = createApp();
   const agent = request.agent(app);
@@ -11,7 +38,9 @@ import config from '../src/config/index.js';
   const csrfToken = (loginPage.headers['set-cookie'] || [])
     .find((c) => c.startsWith('csrf_token='))
     ?.match(/csrf_token=([^;]+)/)[1];
-  if (!csrfToken) throw new Error('No CSRF token');
+  if (!csrfToken) {
+    throw new Error('No CSRF token');
+  }
 
   // 2) POST /login with the CSRF header - credentials from env
   const username = process.env.ADMIN_USERNAME || config.admin.username;

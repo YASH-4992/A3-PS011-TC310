@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, describe, test, expect } from '@jest/globals';
 import request from 'supertest';
 import createApp from '../../src/app.js';
 import Target from '../../src/models/Target.js';
@@ -14,8 +14,15 @@ describe('Target routes', () => {
   beforeAll(async () => {
     await connectMongo();
     app = createApp();
+  });
 
-    // Use agent from the start so it retains cookies
+  beforeEach(async () => {
+    // Clean collections before each test for isolation
+    await Promise.all([
+      Target.deleteMany({}),
+      Audit.deleteMany({}),
+    ]);
+
     agent = request.agent(app);
 
     // GET login page to receive CSRF cookie
@@ -23,7 +30,9 @@ describe('Target routes', () => {
     csrfToken = (loginPage.headers['set-cookie'] || [])
       .find((c) => c.startsWith('csrf_token='))
       ?.match(/csrf_token=([^;]+)/)[1];
-    if (!csrfToken) throw new Error('No CSRF token');
+    if (!csrfToken) {
+      throw new Error('No CSRF token');
+    }
 
     // Login with the agent (preserves session cookie)
     await agent

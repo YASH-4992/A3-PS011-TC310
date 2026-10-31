@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js';
 import logoutRoutes from './routes/auth.js';
 import targetRoutes from './routes/targets.js';
 import auditRoutes from './routes/audit.js';
+import scanRoutes from './routes/scans.js';
 import dashboardRoutes from './routes/dashboard.js';
 import { authMiddleware } from './middleware/auth.js';
 import { csrfMiddleware, csrfCookieMiddleware } from './middleware/csrf.js';
@@ -131,11 +132,13 @@ export const createApp = ({ sessionStore } = {}) => {
   app.use('/api/audit', ...protectedMiddleware, auditRoutes);
   // Target CRUD.
   app.use('/api/targets', ...protectedMiddleware, targetRoutes);
+  // Scan control: POST /api/scan/:targetId starts a scan, GET /api/scans/:scanId
+  // reports its status. Mounted at '/api' because the two paths differ.
+  app.use('/api', ...protectedMiddleware, scanRoutes);
   // UI dashboard - placeholder; real views land in a later slice.
   app.use('/', ...protectedMiddleware, dashboardRoutes);
   // Remaining API route groups are added in subsequent slices:
   // app.use('/api', ...protectedMiddleware, scopeRoutes);
-  // app.use('/api', ...protectedMiddleware, scanRoutes);
   // app.use('/api', ...protectedMiddleware, snapshotRoutes);
   // app.use('/api', ...protectedMiddleware, changeRoutes);
 
