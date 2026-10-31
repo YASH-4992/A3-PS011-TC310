@@ -1,0 +1,59 @@
+{
+  "name": "aiori-attack-surface-monitor",
+  "version": "1.0.0",
+  "description": "Authorized Attack Surface Inventory and Change Monitor - AIORI-3 PS-011",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "lint": "eslint .",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:unit": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/unit",
+    "test:integration": "cross-env NODE_OPTIONS=--experimental-vm-modules jest tests/integration",
+    "db:init": "node docker/init-mongo.js"
+  },
+  "keywords": [
+    "attack-surface",
+    "asset-inventory",
+    "change-monitor",
+    "cybersecurity",
+    "aiori"
+  ],
+  "author": "AIORI-3 Team A3-PS011-TCxxx",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "mongoose": "^8.4.0",
+    "express-session": "^1.18.0",
+    "helmet": "^7.1.0",
+    "zod": "^4.6.7",
+    "nodemailer": "^10.3.1",
+    "ejs": "^3.1.10",
+    "node-cron": "^4.6.0",
+    "pino": "^9.1.0",
+    "pino-http": "^10.2.0",
+    "ipaddr.js": "^2.2.0",
+    "connect-mongo": "^5.1.0",
+    "htmx.org": "^2.0.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "eslint": "^10.14.0",
+    "nodemon": "^3.1.2",
+    "cross-env": "^7.0.3",
+    "pino-pretty": "^13.0.0"
+  },
+  "overrides": {
+    "deepmerge": "^4.3.1",
+    "minimatch": "^11.0.1",
+    "rimraf": "^6.0.1",
+    "uuid": "^11.1.1",
+    "glob": "^10.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
