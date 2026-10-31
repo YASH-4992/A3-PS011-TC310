@@ -6,6 +6,10 @@ An authorized-only tool that inventories configured network services, saves scan
 
 Teams need to know which services are exposed on systems they own and when that exposure changes. Think of this as a periodic, permission-gated walk around a building: record which doors are open, compare the notes on the next visit, and keep a log of who performed each check. This project performs bounded network discovery, not intrusion.
 
+## Project Demo Video
+
+Watch Full Project Demonstration on https://drive.google.com/file/d/1NMz1bmJDOgxq8gYlwgtK8UvwsAwFmOsY/view?usp=sharing
+
 ## How it works
 
 ```mermaid
